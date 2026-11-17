@@ -53,5 +53,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
-	implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+	implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 }
