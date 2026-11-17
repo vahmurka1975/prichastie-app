@@ -17,14 +17,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PrichastieTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Text(
-                        text = "Шагов в каталоге: ${Catalog.steps.size}",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+    PrichastieTheme {
+        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+            StepListScreen(Modifier.padding(innerPadding))
         }
+    }
+}
     }
 }
