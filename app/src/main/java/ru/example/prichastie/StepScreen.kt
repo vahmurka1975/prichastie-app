@@ -21,6 +21,8 @@ import ru.example.prichastie.model.StepKind
 @Composable
 fun StepScreen(
     stepId: String,
+    fontSizeSp: Int,
+    onOpenSettings: () -> Unit,
     onClose: () -> Unit,
     onOpenStep: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -47,7 +49,7 @@ fun StepScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
 
-        // Верхняя строка: назад к списку и номер шага
+        // Верхняя строка: назад к списку, настройки и номер шага
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,6 +58,7 @@ fun StepScreen(
         ) {
             TextButton(onClick = onClose) { Text("← Список") }
             Spacer(Modifier.weight(1f))
+            TextButton(onClick = onOpenSettings) { Text("Aa") }
             Text(
                 text = "${cur.number} из ${included.size}",
                 style = MaterialTheme.typography.labelLarge,
@@ -115,6 +118,7 @@ fun StepScreen(
                 StepText(
                     textKey = step.textKey,
                     language = language,
+                    fontSizeSp = fontSizeSp,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -145,15 +149,20 @@ fun StepScreen(
 }
 
 @Composable
-private fun StepText(textKey: String, language: Language, modifier: Modifier = Modifier) {
+private fun StepText(
+    textKey: String,
+    language: Language,
+    fontSizeSp: Int,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val text by produceState(initialValue = "", textKey, language) {
         value = withContext(Dispatchers.IO) { TextLoader.load(context, textKey, language) }
     }
     Text(
         text = text,
-        fontSize = 20.sp,
-        lineHeight = 30.sp,
+        fontSize = fontSizeSp.sp,
+        lineHeight = (fontSizeSp * 1.5f).sp,
         modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())

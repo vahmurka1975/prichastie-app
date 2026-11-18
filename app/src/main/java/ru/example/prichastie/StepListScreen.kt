@@ -19,18 +19,21 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ru.example.prichastie.model.Catalog
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 @Composable
 fun StepListScreen(
     modifier: Modifier = Modifier,
     vm: MainViewModel = viewModel(),
+    listState: LazyListState = rememberLazyListState(),
     onOpenStep: (String) -> Unit = {}
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val visible = ui.steps.filter { it.included }
     val doneCount = visible.count { it.done }
 
-    LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
+    LazyColumn(state = listState, modifier = modifier.padding(horizontal = 16.dp)) {
         item {
             Text("Весь чин", style = MaterialTheme.typography.headlineSmall)
             Text("$doneCount из ${visible.size} шагов")
@@ -74,7 +77,7 @@ fun StepListScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = row.included) { onOpenStep(row.step.id) }
+                            .clickable { onOpenStep(row.step.id) }
                     ) {
                         Checkbox(
                             checked = row.done,
