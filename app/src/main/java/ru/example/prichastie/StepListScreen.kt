@@ -9,58 +9,91 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ru.example.prichastie.data.Steps
-import ru.example.prichastie.model.Phase
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import ru.example.prichastie.model.Catalog
 
 @Composable
-fun StepListScreen(modifier: Modifier = Modifier) {
-    var done by remember { mutableStateOf(setOf<String>()) }
-
-    val counted = Steps.all.filter { it.countsInProgress }
-    val doneCount = counted.count { it.id in done }
-    val progress = if (counted.isEmpty()) 0f else doneCount / counted.size.toFloat()
+fun StepListScreen(
+    modifier: Modifier = Modifier,
+    vm: MainViewModel = viewModel(),
+    onOpenStep: (String) -> Unit = {}
+) {
+    val ui by vm.ui.collectAsStateWithLifecycle()
+    val visible = ui.steps.filter { it.included }
+    val doneCount = visible.count { it.done }
 
     LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
         item {
             Text("Весь чин", style = MaterialTheme.typography.headlineSmall)
-            Text("$doneCount из ${counted.size} шагов")
+            Text("$doneCount из ${visible.size} шагов")
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { ui.progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             )
-        }
-        Phase.values().forEach { phase ->
-            item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !ui.modeLocked) { vm.setFullMode(!ui.fullMode) }
+            ) {
+                Checkbox(
+                    checked = ui.fullMode,
+                    onCheckedChange = null,
+                    enabled = !ui.modeLocked
+                )
                 Text(
-                    phase.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    "Полное прохождение (с тремя канонами)",
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
-            items(Steps.all.filter { it.phase == phase }, key = { it.id }) { step ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            done = if (step.id in done) done - step.id else done + step.id
-                        }
-                ) {
-                    Checkbox(checked = step.id in done, onCheckedChange = null)
-                    Text(step.title, modifier = Modifier.padding(start = 8.dp))
+        }
+
+        Catalog.groups.forEach { group ->
+            val rows = visible.filter { it.step.groupId == group.id }
+            if (rows.isNotEmpty()) {
+                item(key = "group_${group.id}") {
+                    Text(
+                        group.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                    Text(group.subtitle, style = MaterialTheme.typography.bodySmall)
+                }
+                items(rows, key = { it.step.id }) { row ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = row.included) { onOpenStep(row.step.id) }
+                    ) {
+                        Checkbox(
+                            checked = row.done,
+                            onCheckedChange = { vm.setDone(row.step.id, it) }
+                        )
+                        Text(
+                            "${row.number}. ${row.step.title}",
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
                 }
             }
+        }
+
+        item {
+            OutlinedButton(
+                onClick = { vm.restart() },
+                modifier = Modifier.padding(vertical = 16.dp)
+            ) { Text("Начать всё сначала") }
         }
     }
 }
