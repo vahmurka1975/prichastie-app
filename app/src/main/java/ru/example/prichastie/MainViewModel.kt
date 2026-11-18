@@ -78,8 +78,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun start() = viewModelScope.launch { repo.markStarted() }
 
-    /** Для шагов с текстом, а также для «Готово» у Причастия и «Приидите, ядите…». */
+    /** Для шагов с текстом, а также для «Готово» у Причастия. */
     fun setDone(id: String, done: Boolean) = viewModelScope.launch { repo.setDone(id, done) }
+
+    /** «Этап сначала»: отметка о Причастии (фаза COMMUNION) не затрагивается. */
+    fun restartPhase(phase: Phase) = viewModelScope.launch {
+        val ids = Catalog.steps.filter { it.phase == phase }.map { it.id }.toSet()
+        repo.clearDone(ids)
+    }
 
     fun restart() = viewModelScope.launch { repo.reset() }
 }

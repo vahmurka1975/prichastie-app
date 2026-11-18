@@ -46,6 +46,15 @@ class ProgressRepository(private val context: Context) {
         }
     }
 
+    /** «Этап сначала»: снимает отметки с перечисленных шагов. Если ничего не осталось, режим снова можно менять. */
+    suspend fun clearDone(ids: Set<String>) {
+        context.dataStore.edit { p ->
+            val left = (p[Keys.DONE] ?: emptySet()) - ids
+            p[Keys.DONE] = left
+            if (left.isEmpty()) p[Keys.STARTED] = false
+        }
+    }
+
     /** «Начать всё сначала»: сбрасывает отметки и снимает блокировку режима. */
     suspend fun reset() {
         context.dataStore.edit {
