@@ -201,6 +201,8 @@ class MainActivity : ComponentActivity() {
                                 onSetFullMode = { vm.setFullMode(it) },
                                 onFontSize = { settingsVm.setFontSize(it) },
                                 onTheme = { settingsVm.setThemeMode(it) },
+								onLanguage = { vm.setLanguage(it) },
+                                onDefaultMode = { vm.setDefaultMode(it) },
                                 onRestartAll = restartAll,
                                 modifier = m
                             )

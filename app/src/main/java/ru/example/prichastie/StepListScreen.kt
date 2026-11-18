@@ -141,11 +141,8 @@ fun StepListScreen(
                                 sub = s.step.subtitle,
                                 done = s.done,
                                 locked = locked,
-                                trailing = when {
-                                    s.done -> "100%"
-                                    s.step.id == "church_prayer" -> "отметка"
-                                    else -> "≈ " + fmtMin(s.step.audioSeconds)
-                                },
+                                trailing = s.rowTrailing(),
+                                fraction = s.frac,
                                 onClick = { onOpenStep(s.step.id) }
                             )
                         }

@@ -34,6 +34,8 @@ import ru.example.prichastie.ui.Sans
 import ru.example.prichastie.ui.Serif
 import ru.example.prichastie.ui.theme.palette
 import kotlin.math.roundToInt
+import ru.example.prichastie.model.Language
+import ru.example.prichastie.model.ReadingMode
 
 @Composable
 fun SettingsScreen(
@@ -43,6 +45,8 @@ fun SettingsScreen(
     onSetFullMode: (Boolean) -> Unit,
     onFontSize: (Int) -> Unit,
     onTheme: (ThemeMode) -> Unit,
+	onLanguage: (Language) -> Unit,
+    onDefaultMode: (ReadingMode) -> Unit,
     onRestartAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -89,6 +93,33 @@ fun SettingsScreen(
                     )
                 }
                 HLine()
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Язык", color = p.ink, fontFamily = Sans, fontSize = 14.sp)
+                    SegToggle(
+                        listOf("Совр.", "Церк."),
+                        if (ui.language == Language.MODERN) 0 else 1,
+                        { onLanguage(if (it == 0) Language.MODERN else Language.CHURCH_SLAVONIC) },
+                        Modifier.width(200.dp)
+                    )
+                }
+                HLine()
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Способ по умолчанию", color = p.ink, fontFamily = Sans, fontSize = 14.sp)
+                    SegToggle(
+                        listOf("Текст", "Аудио"),
+                        if (ui.defaultMode == ReadingMode.TEXT) 0 else 1,
+                        { onDefaultMode(if (it == 0) ReadingMode.TEXT else ReadingMode.AUDIO) },
+                        Modifier.width(200.dp)
+                    )
+                }
                 Row(
                     Modifier.fillMaxWidth().padding(top = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween

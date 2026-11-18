@@ -99,6 +99,10 @@ fun SummaryScreen(
                 Stat("Причастие", if (comm) "отмечено ✓" else "не отмечено")
                 Stat("Режим", if (ui.fullMode) "С тремя канонами" else "Без канонов")
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Stat("📖 Прочитано шагов", "${all.mix().read}")
+                Stat("🎧 Прослушано шагов", "${all.mix().heard}")
+            }
 
             AppCard {
                 Text("По разделам", color = p.ink, fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -129,8 +133,9 @@ fun SummaryScreen(
                         StepRow(
                             number = numbers[s.step.id] ?: 0,
                             title = s.step.title,
-                            sub = if (s.step.phase == Phase.BEFORE) "До Причастия" else "После Причастия",
-                            done = false, locked = false, trailing = "",
+                            sub = (if (s.step.phase == Phase.BEFORE) "До Причастия" else "После Причастия") +
+                            (if (s.frac > 0f) " · начато, ${s.pct()}%" else ""),
+                            done = false, locked = false, trailing = "", fraction = s.frac,
                             onClick = { onOpenStep(s.step.id) }
                         )
                     }

@@ -29,16 +29,38 @@ class StepAudioController(context: Context) {
     private var pending: MediaItem? = null
     private var released = false
 
+    private var startFraction = 0f
+    private var startPending = false
+
+    /** Пользователь нажимал «играть» или двигал ползунок: только тогда пишем прогресс. */
+    var touched = false
+        private set
+
+    /** Запись дослушана до конца. */
+    var finished = false
+        private set
+
+    /** Вызывается один раз, когда запись закончилась. */
+    var onEnded: () -> Unit = {}
+
     var state by mutableStateOf(AudioUiState())
         private set
 
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
-            if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) &&
-                player.playbackState == Player.STATE_ENDED
+            if (startPending && player.currentMediaItem != null &&
+                player.playbackState == Player.STATE_READY && player.duration > 0
             ) {
+                startPending = false
+                if (startFraction > 0f) player.seekTo((player.duration * startFraction).toLong())
+            }
+            if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) &&
+                player.playbackState == Player.STATE_ENDED && !finished
+            ) {
+                finished = true
                 player.pause()
                 player.seekTo(0)
+                onEnded()
             }
             refresh()
         }
@@ -72,7 +94,10 @@ class StepAudioController(context: Context) {
         c.prepare()
     }
 
-    fun load(uri: Uri, title: String) {
+    /** startFraction: с какого места продолжить (0..1), когда файл будет готов. */
+    fun load(uri: Uri, title: String, startFraction: Float = 0f) {
+        this.startFraction = startFraction.coerceIn(0f, 0.99f)
+        startPending = this.startFraction > 0f
         val item = MediaItem.Builder()
             .setUri(uri)
             .setMediaMetadata(
@@ -89,10 +114,12 @@ class StepAudioController(context: Context) {
 
     fun toggle() {
         val c = controller ?: return
+        touched = true
         if (c.isPlaying) c.pause() else c.play()
     }
 
     fun seekTo(ms: Long) {
+        touched = true
         controller?.seekTo(ms.coerceAtLeast(0L))
         refresh()
     }

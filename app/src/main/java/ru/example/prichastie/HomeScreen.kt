@@ -100,7 +100,7 @@ fun HomeScreen(
                     Spacer(Modifier.width(14.dp))
                     Text(
                         "Шагов: ${before.count { it.done }} из ${before.size}\n" +
-                            "Осталось ≈ ${fmtMin(before.remainingSec())}",
+                            "Осталось ≈ ${fmtMin(before.remainingSec())}\n${before.mixLine()}",
                         color = p.mut, fontFamily = Sans, fontSize = small, lineHeight = 19.5.sp
                     )
                 }
@@ -150,7 +150,7 @@ fun HomeScreen(
                     Text(
                         if (comm) {
                             "Шагов: ${after.count { it.done }} из ${after.size}\n" +
-                                "Осталось ≈ ${fmtMin(after.remainingSec())}"
+                                "Осталось ≈ ${fmtMin(after.remainingSec())}\n${after.mixLine()}"
                         } else {
                             "Благодарственные молитвы\nоткроются после отметки\nо Причастии"
                         },
@@ -223,7 +223,8 @@ private fun PhaseChecks(
                 sub = "",
                 done = s.done,
                 locked = locked,
-                trailing = if (s.done) "100%" else "",
+                trailing = if (s.done) "100%" else if (s.frac > 0f) "${s.pct()}%" else "",
+                fraction = s.frac,
                 onClick = { onOpenStep(s.step.id) },
                 compact = true
             )
