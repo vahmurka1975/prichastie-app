@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ru.example.prichastie.model.Language
 import ru.example.prichastie.model.StepKind
+import ru.example.prichastie.audio.AudioBar
 
 @Composable
 fun StepScreen(
@@ -122,6 +123,12 @@ fun StepScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            // ▼▼▼ НОВОЕ: аудиопанель под текстом ▼▼▼
+            key(stepId) {
+                AudioBar(stepId = step.id, title = step.title)
+            }
+            // ▲▲▲ конец вставки ▲▲▲
         }
 
         // Нижние кнопки
