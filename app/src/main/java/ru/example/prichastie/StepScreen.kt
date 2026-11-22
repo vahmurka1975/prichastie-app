@@ -46,6 +46,7 @@ import ru.example.prichastie.ui.Serif
 import ru.example.prichastie.ui.theme.palette
 import kotlin.math.max
 import kotlin.math.roundToInt
+import ru.example.prichastie.model.Catalog
 
 @Composable
 fun StepScreen(
@@ -369,7 +370,9 @@ private fun StepView(
         if (audio) {
             key(step.id, effLang) {
                 AudioMode(
-                    textKey = step.textKey,
+                    audioKey = Catalog.audioKeyFor(step, null),
+                    timingKey = Catalog.textKeyFor(step, null),
+                    shared = Catalog.isSharedAudio(step, null),
                     title = step.title,
                     language = effLang,
                     stepLabel = "Шаг ${idx + 1} из ${phaseList.size}",

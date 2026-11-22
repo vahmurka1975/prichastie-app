@@ -1,11 +1,22 @@
 package ru.example.prichastie.model
 
 /**
- * Каталог шагов. Поле textKey — это имя файла в assets/text/ без языка и расширения.
- * Пример: textKey = "b01" -> assets/text/b01.mod.txt и assets/text/b01.csl.txt.
- * Имена взяты из таблицы «Правило_ко_причастию_файлы».
+ * Каталог шагов и этапов.
+ *
+ * Тексты: assets/text/<textKey>.<mod|csl>.txt (у каждого шага свой).
+ * Аудио:  assets/audio/<audioKey>.<mod|csl>.mp3, ключ даёт audioKeyFor():
+ *  - «Каноны»: у каждого шага своя запись (b01, b02, b03);
+ *  - «Последование»: одна запись на весь этап (b04);
+ *  - «Благодарственные»: одна запись на a01–a12.z (a01), для тропаря
+ *    Василию Великому и Григорию Двоеслову отдельные (a12.v, a12.g).
  */
 object Catalog {
+
+    val stages: List<Stage> = listOf(
+        Stage("canons", "Каноны"),
+        Stage("sequence", "Последование ко святому Причащению", sharedAudioKey = "b04"),
+        Stage("thanks", "Благодарственные молитвы", sharedAudioKey = "a01")
+    )
 
     val groups: List<StepGroup> = listOf(
         StepGroup("canons", Phase.BEFORE, "Три канона",
@@ -20,10 +31,18 @@ object Catalog {
             "сразу по выходе из храма или дома")
     )
 
+    /** Какой этап включает группу. У группы «communion» этапа нет. */
+    private val stageOfGroup = mapOf(
+        "canons" to "canons",
+        "prep" to "sequence",
+        "church" to "sequence",
+        "thanks" to "thanks"
+    )
+
     private fun s(
         id: String, group: String, phase: Phase, title: String, sub: String, sec: Int,
         textKey: String, kind: StepKind = StepKind.NORMAL
-    ) = Step(id, group, phase, title, sub, sec, textKey, kind)
+    ) = Step(id, group, phase, title, sub, sec, textKey, kind, stageOfGroup[group])
 
     private fun before(id: String, g: String, key: String, t: String, sub: String, sec: Int) =
         s(id, g, Phase.BEFORE, t, sub, sec, key)
@@ -33,12 +52,12 @@ object Catalog {
         s(id, "thanks", Phase.AFTER, t, sub, sec, key, kind)
 
     val steps: List<Step> = listOf(
-        // ── Три канона (b01–b03) ──
+        // ── Этап «Каноны» (b01–b03) ──
         before("canon_penitential", "canons", "b01", "Покаянный канон ко Господу нашему Иисусу Христу", "", 840),
         before("canon_theotokos", "canons", "b02", "Канон молебный ко Пресвятой Богородице", "", 780),
         before("canon_angel", "canons", "b03", "Канон Ангелу Хранителю", "", 720),
 
-        // ── Последование: начальные молитвы (b04–b09) ──
+        // ── Этап «Последование»: начальные молитвы (b04–b09) ──
         before("prep_tsaryu", "prep", "b04", "«Царю Небесный»", "", 40),
         before("prep_trisagion", "prep", "b05", "Трисвятое", "«Святый Боже…»", 30),
         before("prep_trinity", "prep", "b06", "«Пресвятая Троице»", "«Пресвятая Троице, помилуй нас…»", 25),
@@ -46,7 +65,7 @@ object Catalog {
         before("prep_come", "prep", "b08", "«Приидите, поклонимся»", "трижды", 25),
         before("prep_ourfather", "prep", "b09", "«Отче наш»", "", 40),
 
-        // ── Последование (b10–b26) ──
+        // ── Этап «Последование» (b10–b26) ──
         before("psalm_22", "prep", "b10", "Псалом 22", "«Господь пасет мя»", 70),
         before("psalm_23", "prep", "b11", "Псалом 23", "«Господня земля»", 80),
         before("psalm_115", "prep", "b12", "Псалом 115", "«Веровах, тем же возглаголах»", 80),
@@ -66,19 +85,19 @@ object Catalog {
         before("prayer_b8", "prep", "b24", "Молитва 8-я", "святителя Иоанна Златоуста («Несмь доволен, Владыко Господи…»)", 170),
         before("prayer_b9", "prep", "b25", "Молитва 9-я", "святителя Иоанна Златоуста", 170),
         before("prayer_b10", "prep", "b26", "Молитва 10-я", "преподобного Иоанна Дамаскина", 170),
-        // Символ веры: в таблице один файл b28, читается дважды — оба шага берут его.
-        before("creed_evening", "prep", "b28", "Символ веры", "вечером, в конце последования", 70),
 
-        // ── В храме (b27, b28) ──
+        // ── Этап «Последование»: в храме (b27, b28) ──
         before("church_prayer", "church", "b27", "Молитва «Приидите, ядите, сие есть Тело Мое…»",
             "святителя Иоанна Златоуста; читается мысленно, подходя к чаше", 60),
-        before("creed_church", "church", "b28", "Символ веры", "второй раз: в храме, перед самым причастием", 70),
+        // В таблице один b28 («вечер накануне и в храме перед причастием») — один шаг.
+        before("creed_church", "church", "b28", "Символ веры",
+            "вечером в конце последования и ещё раз в храме, перед самым причастием", 70),
 
-        // ── Само Причащение (в таблице: comm, файлов нет) ──
+        // ── Само Причащение (в таблице: comm, файлов нет, этапа нет) ──
         s("communion", "communion", Phase.COMMUNION, "Причащение Святых Таин",
             "само Таинство, под песнь «Тело Христово приимите…»", 0, "comm", StepKind.COMMUNION),
 
-        // ── Благодарственные молитвы (a01–a18) ──
+        // ── Этап «Благодарственные молитвы» (a01–a12) ──
         after("thanks_glory", "a01", "«Слава Тебе, Боже»", "трижды, сразу после причастия", 25),
         after("thanks_1", "a02", "Благодарственная молитва 1-я", "«Благодарю Тя, Господи, Боже мой, яко не отринул мя еси грешнаго…»", 170),
         after("thanks_2", "a03", "Молитва 2-я", "святителя Василия Великого («Владыко Христе Боже, Царю веков…»)", 170),
@@ -90,17 +109,10 @@ object Catalog {
         after("thanks_trinity", "a09", "«Пресвятая Троице»", "«Пресвятая Троице, помилуй нас…»", 25),
         after("thanks_kyrie", "a10", "«Господи, помилуй»", "12 раз", 30),
         after("thanks_ourfather", "a11", "«Отче наш»", "", 40),
-        // Три файла: a12.z, a12.v, a12.g. По умолчанию a12.z (см. textKeyFor ниже).
+        // Три текста: a12.z, a12.v, a12.g. По умолчанию a12.z (см. textKeyFor).
         after("thanks_troparion", "a12.z", "Тропарь и кондак",
             "по совершившейся литургии: святителю Иоанну Златоусту, Василию Великому или Григорию Двоеслову",
-            70, StepKind.LITURGY_DEPENDENT),
-        after("thanks_6", "a13", "Молитва 6-я", "святителя Иоанна Златоуста", 170),
-        after("thanks_7", "a14", "Молитва 7-я", "ко Пресвятой Богородице", 170),
-        after("thanks_8", "a15", "Молитва 8-я", "Господу нашему Иисусу Христу", 170),
-        after("thanks_9", "a16", "Молитва 9-я", "к Ангелу Хранителю", 170),
-        after("thanks_10", "a17", "Молитва 10-я", "ко Пресвятой Богородице", 170),
-        after("thanks_end", "a18", "Окончание чина",
-            "«Предстательство христиан непостыдное…», «Господи, помилуй» ×12, «Честнейшую Херувим…»", 90)
+            70, StepKind.LITURGY_DEPENDENT)
     )
 
     private val optionalGroupIds = groups.filter { it.optional }.map { it.id }.toSet()
@@ -111,6 +123,14 @@ object Catalog {
 
     fun byId(id: String): Step? = steps.firstOrNull { it.id == id }
 
+    // ── Этапы ──
+
+    fun stageOf(step: Step): Stage? = stages.firstOrNull { it.id == step.stageId }
+
+    fun stepsOf(stage: Stage): List<Step> = steps.filter { it.stageId == stage.id }
+
+    // ── Тексты и аудио ──
+
     /** Буква варианта в имени файла тропаря: a12.z / a12.v / a12.g. */
     private fun liturgyLetter(v: LiturgyVariant) = when (v) {
         LiturgyVariant.CHRYSOSTOM -> "z"
@@ -119,11 +139,35 @@ object Catalog {
     }
 
     /**
-     * Какой файл читать для шага. Для обычных шагов это step.textKey.
-     * Для тропаря по литургии подставляется вариант (если не выбран — Златоуст).
+     * Какой текст читать. Для обычных шагов это step.textKey.
+     * Для тропаря подставляется вариант литургии (если не выбран — Златоуст).
      */
     fun textKeyFor(step: Step, variant: LiturgyVariant?): String =
         if (step.kind == StepKind.LITURGY_DEPENDENT)
             "a12." + liturgyLetter(variant ?: LiturgyVariant.CHRYSOSTOM)
         else step.textKey
+
+    /**
+     * Ключ записи: файл assets/audio/<ключ>.<mod|csl>.mp3. null — записи нет (Причащение).
+     *  - этап с общей записью: ключ этапа ("b04" или "a01");
+     *  - тропарь Василию и Григорию: свои файлы a12.v / a12.g;
+     *  - этап без общей записи (каноны): textKey шага.
+     */
+    fun audioKeyFor(step: Step, variant: LiturgyVariant? = null): String? {
+        if (step.kind == StepKind.COMMUNION) return null
+        val shared = stageOf(step)?.sharedAudioKey
+        return if (step.kind == StepKind.LITURGY_DEPENDENT) {
+            when (variant ?: LiturgyVariant.CHRYSOSTOM) {
+                LiturgyVariant.CHRYSOSTOM -> shared      // тропарь Златоусту внутри записи a01
+                LiturgyVariant.BASIL -> "a12.v"
+                LiturgyVariant.GREGORY -> "a12.g"
+            }
+        } else shared ?: step.textKey
+    }
+
+    /** true, если запись шага — часть общей записи этапа (нужен тайм-код). */
+    fun isSharedAudio(step: Step, variant: LiturgyVariant? = null): Boolean {
+        val key = audioKeyFor(step, variant) ?: return false
+        return stageOf(step)?.sharedAudioKey == key
+    }
 }

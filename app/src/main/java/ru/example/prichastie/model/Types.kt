@@ -25,6 +25,17 @@ enum class LiturgyVariant(val shortName: String) {
     GREGORY("Григорий Двоеслов")
 }
 
+/**
+ * Этап: внутреннее понятие, которое объединяет шаги.
+ * sharedAudioKey == null — у каждого шага своя запись (имя = textKey шага).
+ * Иначе у всех шагов этапа одна общая запись: audio/<sharedAudioKey>.<mod|csl>.mp3.
+ */
+data class Stage(
+    val id: String,
+    val title: String,
+    val sharedAudioKey: String? = null
+)
+
 data class StepGroup(
     val id: String,
     val phase: Phase,
@@ -40,9 +51,11 @@ data class Step(
     val phase: Phase,
     val title: String,
     val subtitle: String,
-    /** Длительность записи в секундах (пока примерная). */
+    /** Длительность чтения в секундах (нужна для взвешенного прогресса). */
     val audioSeconds: Int,
-    /** Ключ текста. У двух чтений Символа веры он общий: "creed". */
+    /** Ключ текста: имя файла в assets/text/ без языка и расширения. */
     val textKey: String = id,
-    val kind: StepKind = StepKind.NORMAL
+    val kind: StepKind = StepKind.NORMAL,
+    /** Этап, к которому относится шаг (null у Причащения). */
+    val stageId: String? = null
 )

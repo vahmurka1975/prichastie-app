@@ -42,6 +42,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import java.io.IOException
+import ru.example.prichastie.Timings
 
 /** Порядок как в макете: 1 → 1.25 → 1.5 → 0.75 → 1. */
 private val SPEEDS = listOf(1f, 1.25f, 1.5f, 0.75f)
@@ -50,15 +52,22 @@ private fun fmtSpeed(v: Float): String =
     if (v == v.toInt().toFloat()) v.toInt().toString() else v.toString()
 
 /**
- * Запись шага из res/raw: «<textKey>_mod» или «<textKey>_csl» (точки и дефисы в ключе
- * заменяются на «_»). Если файла нет, берётся заглушка stub_mod / stub_csl.
+ * Запись из assets/audio/<audioKey>.<mod|csl>.mp3, например audio/b04.mod.mp3.
+ * Если файла нет, берётся заглушка res/raw/stub_mod или stub_csl. Если нет и её, возвращается null.
  */
-fun rawAudioId(context: Context, textKey: String, language: Language): Int {
+fun audioUri(context: Context, audioKey: String?, language: Language): Uri? {
     val suffix = if (language == Language.MODERN) "mod" else "csl"
-    val base = textKey.lowercase().replace(Regex("[^a-z0-9_]"), "_")
-    val res = context.resources
-    val own = res.getIdentifier("${base}_$suffix", "raw", context.packageName)
-    return if (own != 0) own else res.getIdentifier("stub_$suffix", "raw", context.packageName)
+    if (audioKey != null) {
+        val path = "audio/$audioKey.$suffix.mp3"
+        val exists = try {
+            context.assets.open(path).close(); true
+        } catch (e: IOException) {
+            false
+        }
+        if (exists) return Uri.parse("asset:///$path")
+    }
+    val stub = context.resources.getIdentifier("stub_$suffix", "raw", context.packageName)
+    return if (stub != 0) Uri.parse("android.resource://${context.packageName}/$stub") else null
 }
 
 /**
@@ -68,7 +77,9 @@ fun rawAudioId(context: Context, textKey: String, language: Language): Int {
  */
 @Composable
 fun ColumnScope.AudioMode(
-    textKey: String,
+    audioKey: String?,
+	timingKey: String,
+    shared: Boolean,
     title: String,
     language: Language,
     stepLabel: String,
@@ -79,10 +90,27 @@ fun ColumnScope.AudioMode(
 ) {
     val context = LocalContext.current
     val p = palette
-    val resId = remember(textKey, language) { rawAudioId(context, textKey, language) }
-    if (resId == 0) {
+        val uri = remember(audioKey, language) { audioUri(context, audioKey, language) }
+    if (uri == null) {
         Column(Modifier.weight(1f).padding(14.dp)) {
-            AppCard { Note("Для этого шага нет записи. Положите файл в res/raw (например, ${textKey}_mod).") }
+            AppCard { Note("Для этого шага нет записи. Положите файл в assets/audio (например, $audioKey.mod.mp3).") }
+        }
+        return
+    }
+    
+	val langCode = if (language == Language.MODERN) "mod" else "csl"
+    // Отрезок берём только у настоящего файла (не у заглушки)
+    val clip = remember(audioKey, langCode, timingKey, uri) {
+        if (audioKey != null && uri.scheme == "asset")
+            Timings.segment(audioKey, langCode, timingKey)
+        else null
+    }
+    // У шага общей записи без тайм-кода целиком играть нельзя: засчитается чужое
+    if (shared && clip == null) {
+        Column(Modifier.weight(1f).padding(14.dp)) {
+            AppCard {
+                Note("Для этого шага нет тайм-кода в timings.json ($audioKey / $langCode / $timingKey) или нет файла записи.")
+            }
         }
         return
     }
@@ -90,7 +118,7 @@ fun ColumnScope.AudioMode(
     val progressCb by rememberUpdatedState(onProgress)
     val finishedCb by rememberUpdatedState(onFinished)
 
-    val controller = remember(textKey, language) {
+    val controller = remember(audioKey, language) {
         StepAudioController(context).also { it.onEnded = { finishedCb() } }
     }
     DisposableEffect(controller) {
@@ -103,10 +131,8 @@ fun ColumnScope.AudioMode(
         }
     }
 
-    LaunchedEffect(resId, title) {
-        controller.load(
-            Uri.parse("android.resource://${context.packageName}/$resId"), title, startFraction
-        )
+    LaunchedEffect(uri, title, clip) {
+    controller.load(uri, title, startFraction, clip?.startMs ?: 0L, clip?.endMs)
     }
     // Положение ползунка обновляем только пока идёт звук
     LaunchedEffect(controller) {

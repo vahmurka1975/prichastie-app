@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
         ) {
             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-
+    Timings.load(this)
         setContent {
             val settingsVm: SettingsViewModel = viewModel()
             val settings by settingsVm.settings.collectAsStateWithLifecycle()

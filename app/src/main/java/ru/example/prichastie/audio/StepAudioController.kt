@@ -13,6 +13,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.media3.common.C
 
 data class AudioUiState(
     val isPlaying: Boolean = false,
@@ -94,11 +95,20 @@ class StepAudioController(context: Context) {
         c.prepare()
     }
 
-    /** startFraction: с какого места продолжить (0..1), когда файл будет готов. */
-    fun load(uri: Uri, title: String, startFraction: Float = 0f) {
+    /**
+     * startFraction: с какого места продолжить (0..1) внутри отрезка.
+     * clipStartMs / clipEndMs: отрезок общей записи (для шага этапа с одним файлом).
+     */
+    fun load(
+        uri: Uri,
+        title: String,
+        startFraction: Float = 0f,
+        clipStartMs: Long = 0L,
+        clipEndMs: Long? = null
+    ) {
         this.startFraction = startFraction.coerceIn(0f, 0.99f)
         startPending = this.startFraction > 0f
-        val item = MediaItem.Builder()
+        val builder = MediaItem.Builder()
             .setUri(uri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
@@ -106,7 +116,15 @@ class StepAudioController(context: Context) {
                     .setArtist("Последование ко Причащению")
                     .build()
             )
-            .build()
+        if (clipStartMs > 0L || clipEndMs != null) {
+            builder.setClippingConfiguration(
+                MediaItem.ClippingConfiguration.Builder()
+                    .setStartPositionMs(clipStartMs)
+                    .setEndPositionMs(clipEndMs ?: C.TIME_END_OF_SOURCE)
+                    .build()
+            )
+        }
+        val item = builder.build()
         val c = controller
         if (c != null) applyItem(c, item) else pending = item
         refresh()
