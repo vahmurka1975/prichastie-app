@@ -61,9 +61,9 @@ object Catalog {
         before("prep_tsaryu", "prep", "b04", "«Царю Небесный»", "", 40),
         before("prep_trisagion", "prep", "b05", "Трисвятое", "«Святый Боже…»", 30),
         before("prep_trinity", "prep", "b06", "«Пресвятая Троице»", "«Пресвятая Троице, помилуй нас…»", 25),
-        before("prep_kyrie", "prep", "b07", "«Господи, помилуй»", "12 раз", 30),
-        before("prep_come", "prep", "b08", "«Приидите, поклонимся»", "трижды", 25),
-        before("prep_ourfather", "prep", "b09", "«Отче наш»", "", 40),
+        before("prep_ourfather", "prep", "b07", "«Отче наш»", "", 40),
+        before("prep_kyrie", "prep", "b08", "«Господи, помилуй»", "12 раз", 30),
+        before("prep_come", "prep", "b09", "«Приидите, поклонимся»", "трижды", 25),
 
         // ── Этап «Последование» (b10–b26) ──
         before("psalm_22", "prep", "b10", "Псалом 22", "«Господь пасет мя»", 70),
