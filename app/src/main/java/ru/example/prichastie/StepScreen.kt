@@ -47,6 +47,7 @@ import ru.example.prichastie.ui.theme.palette
 import kotlin.math.max
 import kotlin.math.roundToInt
 import ru.example.prichastie.model.Catalog
+import kotlinx.coroutines.launch
 
 @Composable
 fun StepScreen(
@@ -165,11 +166,13 @@ private fun StepView(
     val next = included.getOrNull(pos + 1)
 
     var confirm by remember { mutableStateOf<Confirm?>(null) }
+	val scope = rememberCoroutineScope()
 
     // Способ: у начатого шага он зафиксирован, иначе берём «по умолчанию»
     val locked = !done && pr.mode != null
     val mode = if (!done) pr.mode ?: ui.defaultMode else ui.defaultMode
     val audio = !done && !marker && mode == ReadingMode.AUDIO
+	val autoStart = remember(step.id) { vm.takeAutoPlay(step.id) && audio }
     // У начатого аудио язык записи зафиксирован
     val effLang = if (!done && pr.mode == ReadingMode.AUDIO) pr.language ?: ui.language else ui.language
 
@@ -230,7 +233,7 @@ private fun StepView(
         title = "Начать шаг сначала?",
         body = "Прогресс этого шага ($stepPct%) будет сброшен. Способ (чтение или аудио) можно выбрать заново.",
         action = "Начать сначала",
-        onYes = { vm.resetStep(step.id) }
+        onYes = { vm.resetStep(step.id); scope.launch { scroll.scrollTo(0) } }
     )
 
     val onMode: (Int) -> Unit = { i ->
@@ -321,23 +324,7 @@ private fun StepView(
         HLine()
 
         if (!marker) {
-            // Пометка «шаг начат»
-            if (locked) {
-                Column(
-                    Modifier.fillMaxWidth().background(p.hl).padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        "🔒 Шаг начат: " +
-                            (if (pr.mode == ReadingMode.AUDIO) "🎧 слушание, " +
-                                (if (effLang == Language.MODERN) "совр. рус." else "церк.-слав.")
-                            else "📖 чтение") +
-                            " · $stepPct%. Закончите так же или начните шаг сначала.",
-                        color = p.ink, fontFamily = Sans, fontSize = 12.sp, lineHeight = 17.sp
-                    )
-                    LinkText("↺ Начать шаг сначала") { confirm = restartConfirm }
-                }
-                HLine()
-            }
+
             // Способ и язык
             Row(
                 Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp),
@@ -375,10 +362,20 @@ private fun StepView(
                     shared = Catalog.isSharedAudio(step, null),
                     title = step.title,
                     language = effLang,
+					autoStart = autoStart,
                     stepLabel = "Шаг ${idx + 1} из ${phaseList.size}",
                     startFraction = if (pr.mode == ReadingMode.AUDIO) pr.audioFraction else 0f,
                     onProgress = { f -> vm.recordAudio(step.id, f, effLang) },
-                    onFinished = { vm.finish(step.id, ReadingMode.AUDIO, effLang) },
+                    onFinished = {
+    vm.finish(step.id, ReadingMode.AUDIO, effLang)
+    if (next != null) {
+        // Звук запускаем только на следующем шаге с записью. Причастие и «Приидите, ядите» без записи.
+        if (next.step.kind != StepKind.COMMUNION && !next.step.isMarker) {
+            vm.requestAutoPlay(next.step.id)
+        }
+        onOpenStep(next.step.id)
+    }
+},
                     followContent = { TextCard(step.subtitle, text, fontSizeSp) }
                 )
             }
@@ -425,18 +422,34 @@ private fun StepView(
                         if (marker) {
                             AppButton("Готово ✓", { vm.finish(step.id, null, null) })
                         } else {
-                            if (!canRead) {
-                                Note(
-                                    "Дочитайте до конца: тогда кнопка станет активной",
-                                    Modifier.fillMaxWidth(), TextAlign.Center
-                                )
-                            }
-                            AppButton(
-                                "Прочитано ✓",
-                                { vm.finish(step.id, ReadingMode.TEXT, null) },
-                                enabled = canRead
-                            )
-                        }
+    if (!canRead) {
+        Note(
+            "Дочитайте до конца: тогда кнопка «Дальше» станет активной",
+            Modifier.fillMaxWidth(), TextAlign.Center
+        )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AppButton(
+            "↺ Заново",
+            {
+                if (pr.mode == null && liveFrac < 0.02f) {
+                    scope.launch { scroll.scrollTo(0) }          // чтение не начато: без вопроса
+                } else {
+                    confirm = restartConfirm
+                }
+            },
+            Modifier.weight(1f), outlined = true
+        )
+        AppButton(
+            "Дальше ›",
+            {
+                vm.finish(step.id, ReadingMode.TEXT, null)
+                if (next != null) onOpenStep(next.step.id) else onOpenSummary()
+            },
+            Modifier.weight(2f), enabled = canRead
+        )
+    }
+}
                     } else {
                         val via = when (pr.mode) {
                             ReadingMode.AUDIO -> " · 🎧 прослушано"

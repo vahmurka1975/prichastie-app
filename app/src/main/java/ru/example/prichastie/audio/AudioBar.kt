@@ -48,17 +48,20 @@ import ru.example.prichastie.Timings
 /** Порядок как в макете: 1 → 1.25 → 1.5 → 0.75 → 1. */
 private val SPEEDS = listOf(1f, 1.25f, 1.5f, 0.75f)
 
+/** Показывать ли текст при слушании. По умолчанию открыт, выбор держится между шагами. */
+private var followRemembered = true
+
 private fun fmtSpeed(v: Float): String =
     if (v == v.toInt().toFloat()) v.toInt().toString() else v.toString()
 
 /**
- * Запись из assets/audio/<audioKey>.<mod|csl>.mp3, например audio/b04.mod.mp3.
+ * Запись из assets/audio/<audioKey>.<mod|csl>.m4a, например audio/b04.mod.m4a.
  * Если файла нет, берётся заглушка res/raw/stub_mod или stub_csl. Если нет и её, возвращается null.
  */
 fun audioUri(context: Context, audioKey: String?, language: Language): Uri? {
     val suffix = if (language == Language.MODERN) "mod" else "csl"
     if (audioKey != null) {
-        val path = "audio/$audioKey.$suffix.mp3"
+        val path = "audio/$audioKey.$suffix.m4a"
         val exists = try {
             context.assets.open(path).close(); true
         } catch (e: IOException) {
@@ -78,12 +81,13 @@ fun audioUri(context: Context, audioKey: String?, language: Language): Uri? {
 @Composable
 fun ColumnScope.AudioMode(
     audioKey: String?,
-	timingKey: String,
+    timingKey: String,
     shared: Boolean,
     title: String,
     language: Language,
     stepLabel: String,
     startFraction: Float,
+    autoStart: Boolean,
     onProgress: (Float) -> Unit,
     onFinished: () -> Unit,
     followContent: @Composable () -> Unit
@@ -93,7 +97,7 @@ fun ColumnScope.AudioMode(
         val uri = remember(audioKey, language) { audioUri(context, audioKey, language) }
     if (uri == null) {
         Column(Modifier.weight(1f).padding(14.dp)) {
-            AppCard { Note("Для этого шага нет записи. Положите файл в assets/audio (например, $audioKey.mod.mp3).") }
+            AppCard { Note("Для этого шага нет записи. Положите файл в assets/audio (например, $audioKey.mod.m4a).") }
         }
         return
     }
@@ -131,9 +135,27 @@ fun ColumnScope.AudioMode(
         }
     }
 
-    LaunchedEffect(uri, title, clip) {
-    controller.load(uri, title, startFraction, clip?.startMs ?: 0L, clip?.endMs)
-    }
+    // Предыдущая запись дослушана до конца: этот шаг начинает играть сам.
+    // remember(controller) читает флаг один раз, а не при каждой перекомпозиции.
+    val autoFromPrev = remember(controller) { StepAudioController.consumeContinue() }
+
+    val segment = remember(audioKey, langCode, timingKey, uri) {
+    if (audioKey != null && uri.scheme == "asset")
+        Timings.segment(audioKey, langCode, timingKey)
+    else null
+}
+if (shared && segment == null) { /* ... */ return }
+
+LaunchedEffect(uri, title, segment) {
+    controller.load(
+        uri = uri,
+        title = title,
+        startFraction = startFraction,
+        autoPlay = autoFromPrev || autoStart,
+        clipStartMs = segment?.startMs ?: 0L,
+        clipEndMs = segment?.endMs
+    )
+}
     // Положение ползунка обновляем только пока идёт звук
     LaunchedEffect(controller) {
         while (true) {
@@ -165,33 +187,20 @@ fun ColumnScope.AudioMode(
     val s = controller.state
     var dragging by remember { mutableStateOf(false) }
     var dragValue by remember { mutableFloatStateOf(0f) }
-    var follow by rememberSaveable { mutableStateOf(false) }
+    var follow by remember { mutableStateOf(followRemembered) }
     val duration = s.durationMs.coerceAtLeast(1L).toFloat()
     val shown = if (dragging) dragValue else s.positionMs.toFloat().coerceIn(0f, duration)
 
-    Column(
+     Column(
         Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AppCard {
-            Text("🎧", fontSize = 44.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Note(
-                "Запись · " + if (language == Language.MODERN) "современный русский" else "церковнославянский",
-                Modifier.fillMaxWidth(), TextAlign.Center
-            )
-            Text(
-                "${formatTime(shown.toLong())} / ${formatTime(s.durationMs)}",
-                color = p.ink, fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 30.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
-            )
-            Note("Чтобы шаг засчитался, запись нужно дослушать до конца", Modifier.fillMaxWidth(), TextAlign.Center)
+        LinkText(if (follow) "Скрыть текст" else "Следить по тексту") {
+            follow = !follow
+            followRemembered = follow
         }
-        LinkText(if (follow) "Скрыть текст" else "Следить по тексту") { follow = !follow }
-        Note("Просмотр текста во время слушания не засчитывается как чтение.")
         if (follow) followContent()
     }
-
     Column(Modifier.fillMaxWidth().background(p.card).navigationBarsPadding()) {
         HLine()
         Column(
@@ -200,6 +209,10 @@ fun ColumnScope.AudioMode(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stepLabel, color = p.mut, fontFamily = Sans, fontSize = 11.sp)
+                Text(
+                    "${formatTime(shown.toLong())} / ${formatTime(s.durationMs)}",
+                    color = p.ink, fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                )
                 Text("×${fmtSpeed(s.speed)}", color = p.mut, fontFamily = Sans, fontSize = 11.sp)
             }
             Slider(

@@ -40,6 +40,15 @@ data class UiState(
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = ProgressRepository(app)
+	private var autoPlayFor: String? = null
+
+fun requestAutoPlay(id: String) { autoPlayFor = id }
+
+fun takeAutoPlay(id: String): Boolean {
+    val r = autoPlayFor == id
+    if (r) autoPlayFor = null
+    return r
+}
 
     /** Группы, которые можно не читать (сейчас это «Три канона»). */
     private val optionalGroupIds: Set<String> =
