@@ -350,14 +350,17 @@ private fun StepView(
                         ),
                         if (mode == ReadingMode.TEXT) 0 else 1,
                         onMode,
-                        Modifier.weight(1f)
+                        Modifier.weight(1f),
+                        dimmed = if (locked) setOf(if (mode == ReadingMode.TEXT) 1 else 0) else emptySet()
                     )
                 }
                 SegToggle(
                     listOf("Совр.", "Церк."),
                     if (effLang == Language.MODERN) 0 else 1,
                     onLang,
-                    Modifier.weight(1f)
+                    Modifier.weight(if (done) 1f else 1.1f),
+                    dimmed = if (!done && pr.mode == ReadingMode.AUDIO)
+                        setOf(if (effLang == Language.MODERN) 1 else 0) else emptySet()
                 )
             }
         }

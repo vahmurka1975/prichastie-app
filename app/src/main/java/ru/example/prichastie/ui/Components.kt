@@ -80,8 +80,9 @@ fun Ring(percent: Int, diameter: Dp, color: Color) {
     Box(Modifier.size(diameter), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(diameter)) {
             val stroke = 7.dp.toPx()
-            val d = this.size.minDimension - stroke
-            val topLeft = Offset(stroke / 2f, stroke / 2f)
+            val inset = 7.dp.toPx()                     // как в макете: r = размер / 2 - 7
+            val d = this.size.minDimension - inset * 2
+            val topLeft = Offset(inset, inset)
             drawArc(
                 color = p.line, startAngle = 0f, sweepAngle = 360f, useCenter = false,
                 topLeft = topLeft, size = Size(d, d), style = Stroke(stroke)
@@ -271,21 +272,31 @@ fun GroupHeader(title: String, right: String) {
     }
 }
 
-/** Номер шага в кружке (.nm). */
+/** Номер шага в кружке (.nm, .nm.p, .nm.d). */
 @Composable
-fun NumBadge(text: String, done: Boolean) {
+fun NumBadge(text: String, done: Boolean, started: Boolean = false) {
     val p = palette
+    val edge = when {
+        done -> p.ok
+        started -> p.gold
+        else -> p.line
+    }
     Box(
         Modifier
             .size(28.dp)
             .clip(CircleShape)
             .background(if (done) p.ok else Color.Transparent)
-            .border(1.dp, if (done) p.ok else p.line, CircleShape),
+            .border(1.dp, edge, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(
             if (done) "✓" else text, fontFamily = Sans, fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp, color = if (done) Color.White else p.ink
+            fontSize = 12.sp,
+            color = when {
+                done -> Color.White
+                started -> p.gold
+                else -> p.ink
+            }
         )
     }
 }
@@ -300,6 +311,7 @@ fun StepRow(
     locked: Boolean,
     trailing: String,
     onClick: () -> Unit,
+    fraction: Float = 0f,
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
@@ -317,7 +329,7 @@ fun StepRow(
             .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 6.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        NumBadge(number.toString(), done)
+        NumBadge(number.toString(), done, started = !done && fraction > 0f)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -328,7 +340,7 @@ fun StepRow(
                 Text(sub, color = p.mut, fontFamily = Sans, fontSize = 11.sp)
             }
             PBar(
-                if (done) 1f else 0f, ok = done, height = 4.dp,
+                if (done) 1f else fraction, ok = done, height = 4.dp,
                 modifier = Modifier.padding(top = 5.dp)
             )
         }
@@ -339,13 +351,17 @@ fun StepRow(
     }
 }
 
-/** Переключатель из двух-трёх вариантов (.tg). */
+/**
+ * Переключатель из двух-трёх вариантов (.tg).
+ * dimmed: номера невыбранных вариантов, которые «заперты» (.lk, прозрачность 0.6).
+ */
 @Composable
 fun SegToggle(
     options: List<String>,
     selected: Int,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dimmed: Set<Int> = emptySet()
 ) {
     val p = palette
     val shape = RoundedCornerShape(10.dp)
@@ -360,6 +376,7 @@ fun SegToggle(
             Box(
                 Modifier
                     .weight(1f)
+                    .alpha(if (!on && i in dimmed) 0.6f else 1f)
                     .background(if (on) p.acc else Color.Transparent)
                     .clickable { onSelect(i) }
                     .padding(8.dp),

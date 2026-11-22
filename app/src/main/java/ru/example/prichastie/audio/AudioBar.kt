@@ -43,7 +43,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 
-private val SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f)
+/** Порядок как в макете: 1 → 1.25 → 1.5 → 0.75 → 1. */
+private val SPEEDS = listOf(1f, 1.25f, 1.5f, 0.75f)
+
+private fun fmtSpeed(v: Float): String =
+    if (v == v.toInt().toFloat()) v.toInt().toString() else v.toString()
 
 /**
  * Запись шага из res/raw: «<textKey>_mod» или «<textKey>_csl» (точки и дефисы в ключе
@@ -162,12 +166,15 @@ fun ColumnScope.AudioMode(
         if (follow) followContent()
     }
 
-    Column(Modifier.fillMaxWidth().background(p.card)) {
+    Column(Modifier.fillMaxWidth().background(p.card).navigationBarsPadding()) {
         HLine()
-        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Column(
+            Modifier.fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp)
+        ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(stepLabel, color = p.mut, fontFamily = Sans, fontSize = 11.sp)
-                Text("×${s.speed}", color = p.mut, fontFamily = Sans, fontSize = 11.sp)
+                Text("×${fmtSpeed(s.speed)}", color = p.mut, fontFamily = Sans, fontSize = 11.sp)
             }
             Slider(
                 value = shown,
@@ -207,15 +214,16 @@ fun ColumnScope.AudioMode(
                     Text(if (s.isPlaying) "❚❚" else "▶", color = p.onAcc, fontSize = 20.sp)
                 }
                 KeyButton("+15 с", { controller.skip(15_000) })
-                KeyButton("×${s.speed}", {
+                SpeedButton("×${fmtSpeed(s.speed)}") {
                     val next = SPEEDS[(SPEEDS.indexOf(s.speed).coerceAtLeast(0) + 1) % SPEEDS.size]
                     controller.setSpeed(next)
-                })
+                }
             }
         }
     }
 }
 
+/** Кнопки «−15 с» / «+15 с» (.pc .sm): 44×40, радиус 20. */
 @Composable
 private fun KeyButton(label: String, onClick: () -> Unit) {
     val p = palette
@@ -227,7 +235,24 @@ private fun KeyButton(label: String, onClick: () -> Unit) {
             .clip(shape)
             .border(1.dp, p.line, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = p.ink, fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    }
+}
+
+/** Кнопка скорости (.pc .sp): радиус 10, отступы 8×10. */
+@Composable
+private fun SpeedButton(label: String, onClick: () -> Unit) {
+    val p = palette
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        Modifier
+            .clip(shape)
+            .border(1.dp, p.line, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(label, color = p.ink, fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)

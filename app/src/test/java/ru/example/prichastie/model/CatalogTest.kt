@@ -19,14 +19,14 @@ class CatalogTest {
     }
 
     @Test
-    fun counts() {
-        assertEquals(40, Catalog.steps.size)
-        assertEquals(37, Catalog.activeSteps(includeCanons = false).size)
-    }
+fun counts() {
+    assertEquals(48, Catalog.steps.size)
+    assertEquals(45, Catalog.activeSteps(includeCanons = false).size)
+}
 
-    @Test
-    fun creedSharesOneText() {
-        val keys = Catalog.steps.filter { it.title == "Символ веры" }.map { it.textKey }
-        assertEquals(listOf("creed", "creed"), keys)
-    }
+@Test
+fun creedSharesOneText() {
+    val keys = Catalog.steps.filter { it.title == "Символ веры" }.map { it.textKey }
+    assertEquals(listOf("b28", "b28"), keys)
+}
 }
