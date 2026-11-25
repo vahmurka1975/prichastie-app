@@ -1,0 +1,3 @@
+-keep class kotlin.sequences.** { *; }
+-keep class kotlin.coroutines.jvm.internal.** { *; }
+-dontwarn kotlin.sequences.**

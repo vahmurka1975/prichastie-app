@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Never commit private signing files
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+*.p12
+*.pfx
