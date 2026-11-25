@@ -33,6 +33,7 @@ import ru.example.prichastie.ui.SegToggle
 import ru.example.prichastie.ui.Sans
 import ru.example.prichastie.ui.Serif
 import ru.example.prichastie.ui.theme.palette
+import ru.example.prichastie.updates.UpdateSettingsCard
 import kotlin.math.roundToInt
 import ru.example.prichastie.model.Language
 import ru.example.prichastie.model.ReadingMode
@@ -148,6 +149,7 @@ fun SettingsScreen(
                 )
             }
 
+            UpdateSettingsCard()
             AppButton("↺ Начать всё сначала", onRestartAll, outlined = true)
         }
     }
