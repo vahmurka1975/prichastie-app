@@ -34,8 +34,8 @@ android {
         applicationId = "ru.example.prichastie"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.0.5"
+        versionCode = 10
+        versionName = "1.0.10"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
