@@ -1,0 +1,94 @@
+name: Publish signed APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-signed-apk
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+      - name: Restore signing key
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing signing secret: $name"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"
+      - name: Test and build signed APK
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash ./gradlew --no-daemon :app:testReleaseUnitTest :app:assembleRelease
+      - name: Verify and prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$APK"
+          python3 - <<'PY'
+          import json, os, pathlib, re, shutil
+          m = json.loads(pathlib.Path('app/build/outputs/apk/release/output-metadata.json').read_text())
+          if len(m['elements']) != 1:
+              raise SystemExit('Expected one universal APK')
+          e = m['elements'][0]
+          v = e['versionName']
+          if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}', v):
+              raise SystemExit('Use numeric stable versionName')
+          if e['outputFile'] != 'app-release.apk':
+              raise SystemExit('Unexpected APK filename')
+          pathlib.Path('release-assets').mkdir(exist_ok=True)
+          name = f'prichastie-{v}.apk'
+          shutil.copyfile('app/build/outputs/apk/release/app-release.apk', 'release-assets/' + name)
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'RELEASE_TAG=v{v}\nRELEASE_VERSION={v}\nAPK_NAME={name}\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(f"Version: {v} | versionCode: {e['versionCode']}\n")
+          PY
+          (cd release-assets && sha256sum "$APK_NAME" > SHA256SUMS.txt)
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Release already exists; increase versionCode and versionName."
+            exit 1
+          fi
+          printf 'Signed Android APK, version %s. SHA-256 checksums are attached. Future updates require the same signing key.\n' "$RELEASE_VERSION" > "$RUNNER_TEMP/release-notes.md"
+          gh release create "$RELEASE_TAG" "release-assets/$APK_NAME" release-assets/SHA256SUMS.txt --target "$GITHUB_SHA" --title "$RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" --latest
+      - name: Delete private key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks" "$RUNNER_TEMP/release-notes.md"
